@@ -125,6 +125,8 @@ class SimpleControlNetDataset(Dataset):
         possible_masks = [
             os.path.join(self.data_root, "masks", basename + ".png"),
             os.path.join(self.data_root, "masks", basename + ".jpg"),
+            os.path.join(os.path.dirname(image_path), "masks", basename + ".png"),
+            os.path.join(os.path.dirname(image_path), basename + "_mask.png"),
         ]
         
         mask_path = None
@@ -284,12 +286,7 @@ def parse_args():
     
     parser.add_argument("--validation_prompt", type=str, default=None)
     parser.add_argument("--validation_steps", type=int, default=100)
-    parser.add_argument(
-        "--save_steps", 
-        type=int, 
-        default=500, 
-        help="This is the old save steps argument, now primarily controlled by --checkpointing_steps"
-    ) 
+    parser.add_argument("--save_steps", type=int, default=500)
     parser.add_argument("--local_rank", type=int, default=-1)
 
     args = parser.parse_args()
