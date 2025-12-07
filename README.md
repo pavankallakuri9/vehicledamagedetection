@@ -1,133 +1,74 @@
-# vehicledamagedetection
-AI-Based Vehicle Damage Detection and Classification using Deep Learning
-# 🚗 Vehicle Damage Detection
+# Vehicle Damage Detection & Repair
 
-AI-Based Vehicle Damage Detection and Classification using Deep Learning
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/pavankallakuri9/vehicledamagedetection/blob/main/notebook/Vehicle_damage_detection_and_repair.ipynb)
 
-## 📊 Project Overview
+An AI-powered computer vision pipeline for automated vehicle damage assessment and visualization. This project addresses the subjectivity and inefficiency of manual vehicle damage inspections by providing an end-to-end system that detects damage, segments it, and visualizes the repaired vehicle.
 
-An automated system that detects and classifies vehicle damage from images using transfer learning with EfficientNetB0. Achieves **89%+ accuracy** in identifying damage types including dents, scratches, cracks, broken glass, and missing parts.
+> **Note:** It is highly recommended to open the `Vehicle_damage_detection_and_repair.ipynb` notebook in **Google Colab**. The notebook contains interactive components (such as  upload widgets) that are optimized for the Colab environment.
 
-## ✨ Key Features
+## Project Goal
+To develop an automated system capable of detecting vehicle damage, estimating its extent, and generating realistic visualizations of the repaired vehicle.
 
-- 🎯 **High Accuracy:** 89.3% validation accuracy
-- ⚡ **Fast Inference:** <0.5 seconds per image
-- 🔧 **Multiple Damage Types:** Detects 6-9 different damage categories
-- 📊 **Transfer Learning:** Uses pre-trained EfficientNetB0
-- 💾 **Small Model Size:** Only 21MB
+## Technical Architecture (Phasewise Implementation)
 
-## 🚀 Quick Start
+![Architecture](./architecture.png)
 
-### Prerequisites
-- Python 3.8+
-- TensorFlow 2.x
-- Google Colab (recommended for GPU)
+### Phase 1: Damage Detection (YOLOv8)
+* **Objective:** Automatically detect and localize damage (dents, scratches, cracks) on vehicle images.
+* **Model:** YOLOv8s (Fine-tuned).
+* **Dataset:** 2,000 images from Roboflow (Damage Severity dataset).
+* **Training Strategy:**
+    * **Transfer Learning:** Initialized with pretrained `yolov8s.pt` weights.
+    * **Freeze-Backbone:** First 10 layers were frozen during initial training to retain fundamental feature extraction capabilities.
+    * **Unfreezing:** Subsequent training involved unfreezing layers to adapt the model specifically to damage classes.
+* **Performance:**
+    * **mAP50:** 40.45%
+    * **Precision:** 41.00%
+    * **Recall:** 26.44%
 
-### Installation
-```bash
-pip install tensorflow pillow numpy pandas matplotlib seaborn roboflow
-```
+### Phase 2: Segmentation (SAM - Segment Anything Model)
+* **Objective:** Convert bounding box detections into precise, pixel-level segmentation masks.
+* **Model:** Segment Anything Model (SAM) - `vit_h`.
+* **Implementation:** Zero-shot capability. YOLO detection boxes are used as prompts for SAM to generate binary masks.
+* **Result:** Pixel-perfect isolation of damaged areas without class-specific training.
 
-### Download Dataset
-```python
-from roboflow import Roboflow
-rf = Roboflow(api_key="rf_8bENBieYT9MRd9VfkGjbp7sDtqU2")
-project = rf.workspace("car-damage-kadad").project("car-damage-images")
-dataset = project.version(1).download("folder")
-```
+### Phase 3: Repair Visualization (ControlNet + Stable Diffusion)
+* **Objective:** Generate a realistic image of the vehicle as it would look after repairs.
+* **Model:** Stable Diffusion Inpainting pipeline controlled by ControlNet.
+* **Process:** The system takes the original image and the SAM-generated mask to "inpaint" clean vehicle parts over the damaged areas.
+* **Speed:** Generates repair visualizations in approximately 3-5 seconds.
 
-### Train Model
+## Business Impact
+This system offers a significant efficiency upgrade over traditional manual surveying methods (based on an Indian market case study):
 
-1. Open `Vehicle_Damage_Detection_Complete.ipynb` in Google Colab
-2. Enable GPU: Runtime → Change runtime type → GPU
-3. Run all cells sequentially
-4. Wait ~60 minutes for training to complete
+* **Processing Time:** Reduced from ~8.5 minutes (manual) to ~10 seconds (AI).
+* **Cost Reduction:** Estimated ~83% reduction in processing costs (from ₹395 to ₹67 per image).
+* **Scalability:** A team of 4 Quality Analysts using this AI can match the output of ~50 manual surveyors.
+* **ROI:** Estimated payback period of ~2 months with a 506% ROI in Year 1.
 
-### Make Predictions
-```python
-from tensorflow import keras
-import numpy as np
-from PIL import Image
+## Visualizing the Pipeline
+For a granular look at how the model processes an image, please refer to the `image_processing_step` folder. This directory contains:
+* Step-by-step intermediate images.
+* Visualizations of the raw YOLO bounding boxes.
+* The binary segmentation masks generated by SAM.
+* The in-painting layers before the final merge.
 
-# Load model
-model = keras.models.load_model('best_model.h5')
+## Usage
+1.  **Open in Colab:** Click the "Open in Colab" badge above or upload the notebook to Google Colab.
+2.  **Run the Pipeline:**
+    * **Input:** Upload an image of a damaged vehicle using the interactive widget.
+    * **Process:**
+        1.  Image passed to YOLOv8 for bounding box detection.
+        2.  Bounding boxes passed to SAM for mask generation.
+        3.  Original image + Mask passed to ControlNet for inpainting.
+    * **Output:** View the final repaired visualization directly in the notebook output cells.
 
-# Load image
-img = Image.open('car.jpg').resize((224, 224))
-img_array = np.array(img) / 255.0
-img_array = np.expand_dims(img_array, axis=0)
-
-# Predict
-prediction = model.predict(img_array)
-class_names = ['dent', 'scratch', 'crack', 'broken_glass', 'missing_part']
-predicted_class = class_names[np.argmax(prediction)]
-confidence = np.max(prediction) * 100
-
-print(f"Predicted: {predicted_class} ({confidence:.1f}% confidence)")
-```
-
-## 📈 Results
-
-| Metric | Score |
-|--------|-------|
-| Validation Accuracy | 89.3% |
-| Precision | 89.1% |
-| Recall | 88.6% |
-| F1-Score | 88.8% |
-| Training Time | ~45 min (GPU) |
-
-## 🏗️ Model Architecture
-
-- **Base Model:** EfficientNetB0 (pre-trained on ImageNet)
-- **Custom Layers:** Dense(512) → Dense(256) → Output
-- **Total Parameters:** 5.3M
-- **Trainable Parameters:** 1.3M
-
-## 📊 Dataset
-
-- **Source:** Roboflow Universe - Car Damage Images
-- **Total Images:** ~3,000 labeled images
-- **Classes:** 6-9 damage types
-- **Split:** 70% Train / 20% Val / 10% Test
-
-**Damage Types:**
-- Dent
-- Scratch
-- Crack
-- Broken Glass
-- Missing Part
-- Tire Flat
-- Paint Damage
-
-## 💡 Real-World Applications
-
-- 🏢 **Insurance:** Automated claim processing
-- 🚗 **Car Rentals:** Pre/post-rental inspection
-- 🔧 **Repair Shops:** Damage triage and cost estimation
-- 🏭 **Manufacturing:** Quality control and PDI
-
-## 📁 Project Structure
-```
-├── notebooks/
-│   └── Vehicle_Damage_Detection_Complete.ipynb
-├── models/
-│   └── best_model.h5
-├── results/
-│   ├── confusion_matrix.png
-│   ├── training_history.png
-│   └── classification_report.txt
-└── README.md
-```
-
-## 🛠️ Tech Stack
-
-- **Python** 3.8+
-- **TensorFlow** 2.x
-- **Keras** - Deep learning API
-- **EfficientNetB0** - Base model
-- **NumPy, Pandas** - Data processing
-- **Matplotlib, Seaborn** - Visualization
-- **Roboflow** - Dataset management
+## Technologies Used
+* Python
+* Ultralytics YOLOv8
+* Meta AI Segment Anything Model (SAM)
+* Hugging Face Diffusers (Stable Diffusion & ControlNet)
+* OpenCV, PIL
 
 ## 👥 Team
 
@@ -141,9 +82,6 @@ print(f"Predicted: {predicted_class} ({confidence:.1f}% confidence)")
 | Sajesh Kariadan | Model Development |
 | Nishchal P | Evaluation & Testing |
 
-## 📄 License
-
-MIT License - See LICENSE file for details
 
 ## 🙏 Acknowledgments
 
@@ -154,7 +92,11 @@ MIT License - See LICENSE file for details
 
 ## 📧 Contact
 
-**GitHub:** [pavankallakuri9](https://github.com/pavankallakuri9)  
+**GitHub:** 
+
+- [pavankallakuri9](https://github.com/pavankallakuri9)
+- [Nishchal](https://github.com/Nishchal-dl) 
+
 **Project Link:** [Vehicle Damage Detection](https://github.com/pavankallakuri9/vehicledamagedetection)
 
 ---
